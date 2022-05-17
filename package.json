@@ -24,7 +24,7 @@
     "nodemon": "^2.0.16",
     "redis": "^4.1.0",
     "route": "^0.2.5",
-    "short-id": "^0.1.0-1",
+    "short-id": "^0.0.0",
     "util": "^0.12.4",
     "valid-url": "^1.0.9",
     "validator": "^13.7.0"
