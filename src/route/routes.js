@@ -7,5 +7,7 @@ router.post('/url/shorten' , urlController.createUrl )
 
 router.get('/:urlCode' , urlController.getUrl)
 
+router.put('/DeleteCache', urlController.flushRedis )
+
 
 module.exports = router

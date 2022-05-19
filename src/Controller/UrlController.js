@@ -2,16 +2,16 @@
 const urlModel = require('../Model/Urlmodel')
 const shortId = require('short-id')
 const redis = require("redis");
-
 const { promisify } = require("util");
+
 
 //Connect to redis
 const redisClient = redis.createClient(
-    13190,
-    "redis-13190.c301.ap-south-1-1.ec2.cloud.redislabs.com",
+    14740,
+    "redis-14740.c301.ap-south-1-1.ec2.cloud.redislabs.com",
     { no_ready_check: true }
 );
-redisClient.auth("gkiOIPkytPI3ADi14jHMSWkZEo2J5TDG", function (err) {
+redisClient.auth("CUiEXoXZeeQiW5uj29jrMIOsgHQEDQHI", function (err) {
     if (err) throw err;
 });
 
@@ -27,11 +27,12 @@ const SET_ASYNC = promisify(redisClient.SET).bind(redisClient);
 const GET_ASYNC = promisify(redisClient.GET).bind(redisClient)
 
 
-//------------------------------------------Basic Validation-------------------------------------------------------------------//
+//-----------------------------------------------------------Basic Validation---------------------------------------------------------------------------------//
 
 function validateUrl(value) {
-    return /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/.test(value);
+    return /^(https:\/\/www\.|http:\/\/www\.|www\.)[a-zA-Z0-9\-_.$]+\.[a-zA-Z]{2,5}(:[0-9]{1,5})?(\/[^\s]*)?/gm.test(value);
 }
+
 function isValidBody(value) {
     if (Object.keys(value).length == 0) { return false }
     else return true;
@@ -39,21 +40,26 @@ function isValidBody(value) {
 
 
 // 1 Api
-//----------------------------------------------Post/url/shorten-------------------------------------------------------------//
+//----------------------------------------------------------Post/url/shorten----------------------------------------------------------------------------//
 
 const createUrl = async function (req, res) {
 
     try {
         let data;
 
-        //Getting original url from user
+        //Getting original Url from user
         let longUrl = req.body.longUrl;
+
+        //validation check for empty body-
+        if (!isValidBody(req.body)) return res.status(400).send({ status: false, message: 'Bad Request: Empty body' })
+
 
         //Getting data from cache
         let isCachedUrlData = await GET_ASYNC(`${longUrl}`)
         if (isCachedUrlData) {
             let cachedUrlData = JSON.parse(isCachedUrlData)
-           data = {
+
+            data = {
                 longUrl: cachedUrlData.longUrl,
                 shortUrl: cachedUrlData.shortUrl,
                 urlCode: cachedUrlData.urlCode
@@ -61,13 +67,13 @@ const createUrl = async function (req, res) {
             return res.status(200).send({ status: true, message: "success", data: data })
         }
 
-        
+
         else {
             //Validating url
             if (!validateUrl(longUrl)) return res.status(400).send({ status: false, message: `${longUrl} is not a valid url` })
 
             //Generating unique url code
-           const  urlCode = shortId.generate().toLowerCase();
+            const urlCode = shortId.generate().toLowerCase();
 
             //Checking uniqueness of url in database
             let isUniqueUrlCode = await urlModel.findOne({ urlCode: urlCode })
@@ -88,7 +94,7 @@ const createUrl = async function (req, res) {
 
             await SET_ASYNC(`${longUrl}`, JSON.stringify(result))
 
-            return res.status(200).send({ status: true, message: "success", data: result })
+            return res.status(201).send({ status: true, message: "successfully Generated", data: result })
         }
     }
     catch (err) {
@@ -130,4 +136,28 @@ const getUrl = async function (req, res) {
     }
 }
 
-module.exports = { createUrl, getUrl }
+
+
+//-------------------------------------------------------------------delete cache data---------------------------------------------------------------//
+
+const flushRedis = (req, res) => {
+
+    redisClient.flushall('ASYNC', (err, data) => {
+        if (err)
+            console.log(err)
+        else if (data)
+            console.log('Memory flushed:', data)
+    })
+    res.status(200).send({ message: "Redis memory cleared" })
+    
+}
+
+
+
+module.exports = { createUrl, getUrl, flushRedis }
+
+
+
+
+
+
